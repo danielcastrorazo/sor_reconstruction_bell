@@ -214,3 +214,4 @@ class ColomboController(MethodController):
             logger.info(f'\t{root[0]:.5f}\t{root[1]:.5f}')
 
         self.entities_groups = generate_entities(roots)
+        self.entities_groups = self.entities_groups[:1] + self.entities_groups[-1:]

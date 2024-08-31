@@ -131,7 +131,7 @@ def list_image_files(image_path: Path, allowed_extensions = None) -> dict[str, P
 @io_process
 def export_for_tex(file_id: str, output_path: Path, identifier: str, inner, outer, image, unrectified_meridian=None):
     full_output_path_dir = output_path / file_id / identifier
-    logger.log('INFO-S', f'Saving data for text to {full_output_path_dir}')
+    logger.log('INFO-S', f'Saving data for tex to {full_output_path_dir}')
     try:
         import numpy as np
         full_output_path_dir.mkdir(parents=True, exist_ok=True)

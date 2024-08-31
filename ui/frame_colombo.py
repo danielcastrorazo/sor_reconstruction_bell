@@ -31,7 +31,8 @@ class FrameColombo(_Frame):
             self.combination_frame.grid(row=row, column=0, sticky="ew", padx=5, pady=5)
             self.combobox = ttk.Combobox(
                 self.combination_frame,
-                values=['Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5', 'Option 6'],
+                values=['Option 1', 'Option 2'],
+                # values=['Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5', 'Option 6'],
                 state='readonly',
             )
             self.combobox.bind(
