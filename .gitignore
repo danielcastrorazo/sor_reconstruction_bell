@@ -1,0 +1,32 @@
+venv
+submodules
+input/images
+output
+synth
+
+
+.vscode
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Numpy data
+*.npy
+
+# C extensions
+*.so
+
+#Images
+*.png
+*.hdr
+*.mdl
+*.jpg
+
+#3d
+*.obj
+*.mtl
+*.usd
+
+*.sh

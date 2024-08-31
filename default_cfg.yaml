@@ -1,0 +1,80 @@
+# Default configuration file, if no variables are set in the user configuration file
+# these settings will be used instead.
+log_level: 'INFO'
+#TRACE DEBUG INFO
+
+INPUT_PATH: './input'
+OUTPUT_PATH: './output'
+
+DATA_PATH: './input/data.yaml'
+CURVE_PATH: './output/curves.yaml'
+
+IMAGE_PATH: './input/images'
+
+# If resize or ellipse_angle_mean are true, new data and edits are disabled.
+resize: True
+resize_max: 1024
+
+ellipse_angle_mean: False
+smoothing_range: 10
+
+geometric:
+  disable_filter_overall: False
+  filter_mask: 
+  parametrization: ['chord', 'uniform', 'centripetal']
+  sample_size: [32, 256]
+  smoothing_factor: [0.0, 0.01, 0.005]
+  filter_outliers: [0.1, 10.0, 4.5]
+  outer_curve_size: [2, 64]
+  inner_curve_size: [3, 32]
+  create_obj: False
+  phi_n: 64
+  # extract_texture: False
+  
+geometric_k:
+  filter_depth: [0.0, 1.0]
+  stage_mappings:
+    filter_mask: 0
+    parametrization: 2
+    sample_size: 2
+    smoothing_factor: 2
+    filter_outliers: 2
+    filter_depth: 3
+    outer_curve_size: 4
+    inner_curve_size: 4
+    create_obj: 5
+
+geometric_c:
+  combination: -1
+  filter_cross_ratio: [0.0, 1.0]
+  user_ellipse: False
+  phi_ellipse: 0.0
+  stage_mappings:
+    combination: 0
+    filter_mask: 1
+    parametrization: 2
+    sample_size: 2
+    smoothing_factor: 2
+    filter_outliers: 2
+    filter_cross_ratio: 3
+    user_ellipse: 4
+    phi_ellipse: 4
+    outer_curve_size: 5
+    inner_curve_size: 5
+    create_obj: 6
+
+subprocess:
+  max_ellipses: 10
+  exif: 'pillow' # exiftool, pillow
+  segmentation: 'rembg' #sc, rembg
+
+gui:
+  title: 'Main Window v0.0.3'
+  tab1:
+    title: 'Data Input'
+  tab2:
+    title: 'Geometric Method 1'
+  tab3:
+    title: 'Geometric Method 2'
+
+show_checkers: True

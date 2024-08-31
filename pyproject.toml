@@ -1,0 +1,29 @@
+[project]
+name = "example_package_YOUR_USERNAME_HERE"
+version = "0.0.1"
+authors = [
+  { name="Daniel Castro Razo", email="" },
+]
+description = ""
+readme = "README.md"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version ="py312"
+extend-exclude =["tests", "ui/canvas.py", "submodules", "synth"]
+line-length = 100
+
+[tool.ruff.format]
+quote-style ="single"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "UP", "B", "SIM", "I", "C901"
+]
+ignore = ["E501", "B905"]
+
+[tool.vulture]
+exclude =["tests", "ui/canvas.py", "submodules", "synth", "venv"]
+min_confidence = 10
+sort_by_size = true
+verbose = false

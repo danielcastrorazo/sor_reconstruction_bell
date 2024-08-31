@@ -1,0 +1,6 @@
+[submodule "submodules/SimpleClick"]
+	path = submodules/SimpleClick
+	url = https://github.com/uncbiag/SimpleClick.git
+[submodule "submodules/ritm_interactive_segmentation"]
+	path = submodules/ritm_interactive_segmentation
+	url = https://github.com/SamsungLabs/ritm_interactive_segmentation.git
