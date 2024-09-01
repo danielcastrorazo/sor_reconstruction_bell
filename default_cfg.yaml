@@ -1,6 +1,6 @@
 # Default configuration file, if no variables are set in the user configuration file
 # these settings will be used instead.
-log_level: 'INFO'
+log_level: 'DEBUG'
 #TRACE DEBUG INFO
 
 INPUT_PATH: './input'

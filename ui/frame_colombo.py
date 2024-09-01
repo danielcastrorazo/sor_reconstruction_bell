@@ -112,7 +112,7 @@ class FrameColombo(_Frame):
         self.checkbox_ellipse_var.set(user_ellipse)
         self.dial_angle.set_angle(phi_ellipse)
 
-    def _stage0_update(self, axis, vanishing_line):
+    def _stage0_update(self, vanishing_line):
         self.axis_line.set_data([], [])
         self.vanishing_line.set_data([], [])
 
@@ -120,7 +120,7 @@ class FrameColombo(_Frame):
         self.filter_1_line[1] = None
 
         intersection_points = intersection_of_line_in_rectangle(
-            axis, self.controller.width, self.controller.height
+            self.controller.axis, self.controller.width, self.controller.height
         )
         if len(intersection_points):
             self.axis_line.set_data(zip(*intersection_points))
@@ -190,8 +190,8 @@ class FrameColombo(_Frame):
         if event == 'stage_update':
             stage_id = kwargs['stage_id']
             if stage_id == 0:
-                axis, vanishing_line = kwargs['axis'], kwargs['vanishing_line']
-                self._stage0_update(axis, vanishing_line)
+                vanishing_line = kwargs['vanishing_line']
+                self._stage0_update(vanishing_line)
             elif stage_id == 1:
                 filter_mask = self.controller.options['filter_mask']
                 fixed = kwargs['fixed_points']

@@ -50,10 +50,8 @@ class _Ellipse:
     def aprox_distance_to_point(self, x): # Sampson approximation to the geometric distance
         C = self.get_matrix_form()
         Cx = C @ x
-        numerator = np.dot(x, Cx) ** 2
-        a, b = Cx[0], Cx[1]
-        denominator = 4.0 * (a ** 2 + b ** 2)
-        return numerator / denominator
+        Cx /= Cx[2]
+        return np.dot(x, Cx) ** 2 / (4.0 * (Cx[0] ** 2 + Cx[1] ** 2))
 
     def __post_init__(self):
         if isinstance(self.center, list) and isinstance(self.axes, list):

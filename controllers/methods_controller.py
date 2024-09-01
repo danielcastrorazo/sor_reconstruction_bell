@@ -126,7 +126,7 @@ class MethodController(Observable):
             stage.output = None
 
         self.options = copy.deepcopy(self.default_options)
-        self.rho = self.data_controller['metadata'].scale
+        self.rho_scale = self.data_controller['metadata'].scale
 
         self.height, self.width = self.data_controller['metadata'].image_size[:2]
         self.contour = to_homogeneous(self.data_controller['contour'])
@@ -147,7 +147,9 @@ class MethodController(Observable):
             outer_detail, inner_detail= self.controller.options['outer_curve_size'], self.controller.options['inner_curve_size']
 
             full_curve, full_tangents, outer_curve, inner_curve, outer_tangents, inner_tangents = generate_model(data, parametrization, outer_detail, inner_detail)
-            logger.success(f'The curve scale is {max(outer_curve[:, 0])}')
+            logger.success(f'The scale is {max(outer_curve[:, 0])}')
+            if self.controller.rho_scale > 0:
+                logger.info(f'Scale found in data.yaml. {self.controller.rho_scale}')
             return {**stage_data, 'output': (full_curve, full_tangents), 'outer_curve': (outer_curve, outer_tangents), 'inner_curve': (inner_curve, inner_tangents)}
         
     class ExportData(Stage):

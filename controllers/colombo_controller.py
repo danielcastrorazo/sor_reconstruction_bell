@@ -33,38 +33,31 @@ class ColomboController(MethodController):
     class EntitySelection(Stage):
         def _process(self, combobox_selection_idx):
             axis, _, vanishing_line, ic, jc = self.controller.entities_groups[combobox_selection_idx]
-
-            self.vanishing_line = vanishing_line
-            self.controller.axis = axis
-
-            self.controller.axis = optimize_axis_of_symmetry(self.controller.contour, self.controller.axis, self.controller.camera_matrix)
-            
-            return {'axis': self.controller.axis, 'vanishing_line': vanishing_line, 'ic':ic, 'jc':jc}
+            self.controller.axis = optimize_axis_of_symmetry(self.controller.contour, axis, self.controller.camera_matrix)
+            return {'vanishing_line': vanishing_line, 'ic':ic, 'jc':jc}
 
     class ContourFiltering(Stage):
         def _process(self, stage_data):
             data = self.controller.contour[self.controller.options['filter_mask']]            
-            axis = stage_data['axis']
-
-            data = data[sort_by_distance_to_axis(data, axis)]
+            data = data[sort_by_distance_to_axis(data, self.controller.axis)]
 
             orientation = check_contour_orientation(data)
             logger.trace(f"Contour orientation: {'CCW' if orientation else 'CW'}")
             if not orientation:
-                data = reflect_points_on_line(data, axis)
+                data = reflect_points_on_line(data, self.controller.axis)
                 logger.info('Applied a reflection over the initial points.')
             
-            fixed_idx = set([0, len(data) - 1])
-            for ellipse in self.controller.ellipses[1:]:
+            fixed_idx = set([0])
+            for ellipse in self.controller.ellipses:
                 distances = [ellipse.aprox_distance_to_point(p) for p in data]
                 fixed_idx.add(np.argmin(distances))
             fixed_points = np.array([data[i] for i in fixed_idx])
-
+            
             return {**stage_data, 'output': data, 'fixed_idx': fixed_idx, 'fixed_points': fixed_points, 'top_point': data[0]}
 
     class SplineFittingAndTangent(Stage):
         def _process(self, stage_data):
-            data, axis = stage_data['output'], stage_data['axis']
+            data = stage_data['output']
             logger.info(f'Initial number of points. {len(data)}')
             
             fixed_idx = stage_data['fixed_idx']
@@ -87,7 +80,7 @@ class ColomboController(MethodController):
             tangent_lines = np.cross(data, tangent_vectors)
             tangent_lines /= np.linalg.norm(tangent_lines[:, :2], axis=1)[:, np.newaxis]
 
-            theta = get_angle_of_line(axis)
+            theta = get_angle_of_line(self.controller.axis)
             if not self.controller.options['disable_filter_overall'] and np.abs(theta - np.pi / 2) > 1e-10:
                 diff = theta - np.pi / 2 if theta > 0 else theta + np.pi / 2
                 rotation_matrix_z = rotation_matrix('z', -diff)
@@ -108,9 +101,9 @@ class ColomboController(MethodController):
     class HomologyAndCrossRatio(Stage):
         def _process(self, stage_data):
             data, tangent_lines = stage_data['output'], stage_data['tangent_lines']
-            axis, vanishing_line = stage_data['axis'], stage_data['vanishing_line']
+            vanishing_line = stage_data['vanishing_line']
 
-            w_homologies, w_chars, _, _ = generate_w_homologies(data, tangent_lines, axis, vanishing_line, self.controller.ellipse_base_matrix)
+            w_homologies, w_chars, _, _ = generate_w_homologies(data, tangent_lines, self.controller.axis, vanishing_line, self.controller.ellipse_base_matrix)
 
             if not self.controller.options['disable_filter_overall']:
                 data, w_homologies, w_chars = filter_outliers(data, w_homologies, w_chars, mask_values=np.abs(w_chars), m=self.controller.options['filter_outliers'],
@@ -124,7 +117,7 @@ class ColomboController(MethodController):
     
     class RectificationAndNormalization(Stage):
         def _process(self, stage_data):
-            axis, vanishing_line = stage_data['axis'], stage_data['vanishing_line']
+            vanishing_line = stage_data['vanishing_line']
             w_homologies, cross_ratio = stage_data['w_homologies'], stage_data['cross-ratio']
 
             logger.trace('Searching for a good ellipse point that will be part of the unrectified meridian.')
@@ -132,7 +125,7 @@ class ColomboController(MethodController):
                 if any(np.abs(np.linalg.eigvals(self.controller.ellipse_base_matrix)) < 1e-15):
                     phi = np.pi / 4
                 else:
-                    p0, q0 = intersection_between_conic_and_line(self.controller.ellipse_base_matrix, axis)
+                    p0, q0 = intersection_between_conic_and_line(self.controller.ellipse_base_matrix, self.controller.axis)
                     lpq = np.cross(p0, q0)
                     lpq /= np.linalg.norm(lpq[:2])
                     
@@ -156,7 +149,7 @@ class ColomboController(MethodController):
                         cos_t = (A * F - B * D) / denom_cos
                         sin_t = (B * C - A * E) / denom_sin
                         return np.arctan2(sin_t, cos_t)
-                    if np.sign(np.dot(axis, p)) == np.sign(np.dot(axis, stage_data['output'][0])):
+                    if np.sign(np.dot(self.controller.axis, p)) == np.sign(np.dot(self.controller.axis, stage_data['output'][0])):
                         phi = find_t(p[0], p[1], self.controller.ellipse_base)
                         phi = np.pi if np.isnan(phi) else phi
                     else:
@@ -164,10 +157,10 @@ class ColomboController(MethodController):
                         phi = 0.0 if np.isnan(phi) else phi
             else:
                 phi = self.controller.options['phi_ellipse']
-                logger.info('User Input for the ellipse point.')
+                logger.trace('User input for the ellipse point.')
                 phi = self.controller.options['phi_ellipse']
             ellipse_point_u_meridian = to_homogeneous(self.controller.ellipse_base.get_points(1, phi, phi))[0]
-            logger.trace(f'Base point for the unrectified meridian : {ellipse_point_u_meridian[0]:.3f}, {ellipse_point_u_meridian[1]:.3f}.')
+            logger.info(f'Base point for the unrectified meridian : {ellipse_point_u_meridian[0]:.3f}, {ellipse_point_u_meridian[1]:.3f}.')
 
             unrectified_meridian = np.array([apply_transformation(w, ellipse_point_u_meridian) for w in w_homologies])
 
