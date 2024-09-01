@@ -4,6 +4,8 @@ input/images
 output
 synth
 
+tests/
+
 
 .vscode
 

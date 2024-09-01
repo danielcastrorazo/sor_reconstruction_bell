@@ -42,15 +42,10 @@ class ColomboController(MethodController):
             return {'axis': self.controller.axis, 'vanishing_line': vanishing_line, 'ic':ic, 'jc':jc}
 
     class ContourFiltering(Stage):
-        def _process(self, input):
-            data = self.controller.contour[self.controller.options['filter_mask']]
-            return {**input, 'output': data}
+        def _process(self, stage_data):
+            data = self.controller.contour[self.controller.options['filter_mask']]            
+            axis = stage_data['axis']
 
-    class SplineFittingAndTangent(Stage):
-        def _process(self, input):
-            data, axis = input['output'], input['axis']
-            logger.info(f'Initial number of points. {len(data)}')
-            
             data = data[sort_by_distance_to_axis(data, axis)]
 
             orientation = check_contour_orientation(data)
@@ -59,23 +54,41 @@ class ColomboController(MethodController):
                 data = reflect_points_on_line(data, axis)
                 logger.info('Applied a reflection over the initial points.')
             
+            fixed_idx = set([0, len(data) - 1])
+            for ellipse in self.controller.ellipses[1:]:
+                distances = [ellipse.aprox_distance_to_point(p) for p in data]
+                fixed_idx.add(np.argmin(distances))
+            fixed_points = np.array([data[i] for i in fixed_idx])
+
+            return {**stage_data, 'output': data, 'fixed_idx': fixed_idx, 'fixed_points': fixed_points, 'top_point': data[0]}
+
+    class SplineFittingAndTangent(Stage):
+        def _process(self, stage_data):
+            data, axis = stage_data['output'], stage_data['axis']
+            logger.info(f'Initial number of points. {len(data)}')
+            
+            fixed_idx = stage_data['fixed_idx']
+
             parametrization = self.controller.options['parametrization']
             s = self.controller.options['smoothing_factor'] * len(data)
             t = np.linspace(0.0, 1.0, self.controller.options['sample_size'])
             logger.info(f'Smoothing Factor {s}.')
 
-            data, tangent_vectors = generate_and_evaluate_spline(data, s=s, t=t, parametrization=parametrization)
+            weights = np.ones(len(data))
+            weights[[*fixed_idx]] = 10 ** 6
+            
+            data, tangent_vectors = generate_and_evaluate_spline(data, s=s, t=t, parametrization=parametrization, weights=weights)
             data = np.c_[*data, np.ones_like(t)]
+            logger.info(f'Spline fit to contour and sampled. Number of sample points: {len(data)}')
+
             tangent_vectors = np.c_[*tangent_vectors, np.zeros_like(t)]
             tangent_vectors /= np.linalg.norm(tangent_vectors, axis=1)[:, np.newaxis]
-
-            logger.info(f'Spline fitted to contour and sampled. Number of sample points: {len(data)}')
 
             tangent_lines = np.cross(data, tangent_vectors)
             tangent_lines /= np.linalg.norm(tangent_lines[:, :2], axis=1)[:, np.newaxis]
 
             theta = get_angle_of_line(axis)
-            if np.abs(theta - np.pi / 2) > 1e-10:
+            if not self.controller.options['disable_filter_overall'] and np.abs(theta - np.pi / 2) > 1e-10:
                 diff = theta - np.pi / 2 if theta > 0 else theta + np.pi / 2
                 rotation_matrix_z = rotation_matrix('z', -diff)
 
@@ -86,16 +99,16 @@ class ColomboController(MethodController):
                 normals_rectify /= np.linalg.norm(normals_rectify, axis=1)[:, np.newaxis]
                 n_x, n_y = normals_rectify[:, 0], normals_rectify[:, 1]
 
-                if not self.controller.options['disable_filter_overall']:
-                    mask_values = np.abs(np.divide(n_y, n_x, where=n_x != 0))
-                    data, tangent_lines = filter_outliers(data, tangent_lines, mask_values=mask_values, m=self.controller.options['filter_outliers'], msg='Outliers in normals.')
+                mask_values = np.abs(np.divide(n_y, n_x, where=n_x != 0))
+                data, tangent_lines = filter_outliers(data, tangent_lines, mask_values=mask_values,
+                                                      m=self.controller.options['filter_outliers'], msg='Outliers in normals.')
 
-            return {**input, 'output': data, 'tangent_lines': tangent_lines}
+            return {**stage_data, 'output': data, 'tangent_lines': tangent_lines}
 
     class HomologyAndCrossRatio(Stage):
-        def _process(self, input):
-            data, tangent_lines = input['output'], input['tangent_lines']
-            axis, vanishing_line = input['axis'], input['vanishing_line']
+        def _process(self, stage_data):
+            data, tangent_lines = stage_data['output'], stage_data['tangent_lines']
+            axis, vanishing_line = stage_data['axis'], stage_data['vanishing_line']
 
             w_homologies, w_chars, _, _ = generate_w_homologies(data, tangent_lines, axis, vanishing_line, self.controller.ellipse_base_matrix)
 
@@ -107,12 +120,12 @@ class ColomboController(MethodController):
                 data, w_homologies, w_chars = filter_outliers(data, w_homologies, w_chars, mask=filter_data_by_percentages(w_chars, *self.controller.options['filter_cross_ratio']),
                                                               msg='Cross-Ratio.', user=True)
 
-            return {**input, 'output': data, 'w_homologies': w_homologies, 'cross-ratio': w_chars}
+            return {**stage_data, 'output': data, 'w_homologies': w_homologies, 'cross-ratio': w_chars}
     
     class RectificationAndNormalization(Stage):
-        def _process(self, input):
-            axis, vanishing_line = input['axis'], input['vanishing_line']
-            w_homologies, cross_ratio = input['w_homologies'], input['cross-ratio']
+        def _process(self, stage_data):
+            axis, vanishing_line = stage_data['axis'], stage_data['vanishing_line']
+            w_homologies, cross_ratio = stage_data['w_homologies'], stage_data['cross-ratio']
 
             logger.trace('Searching for a good ellipse point that will be part of the unrectified meridian.')
             if not self.controller.options['user_ellipse']:
@@ -143,7 +156,7 @@ class ColomboController(MethodController):
                         cos_t = (A * F - B * D) / denom_cos
                         sin_t = (B * C - A * E) / denom_sin
                         return np.arctan2(sin_t, cos_t)
-                    if np.sign(np.dot(axis, p)) == np.sign(np.dot(axis, input['output'][0])):
+                    if np.sign(np.dot(axis, p)) == np.sign(np.dot(axis, stage_data['output'][0])):
                         phi = find_t(p[0], p[1], self.controller.ellipse_base)
                         phi = np.pi if np.isnan(phi) else phi
                     else:
@@ -184,7 +197,7 @@ class ColomboController(MethodController):
                 unrectified_meridian = unrectified_meridian[sorted_idx]
                 cross_ratio = cross_ratio[sorted_idx]
             
-            return {**input, 'output': normalized_data, 'w_homologies': w_homologies, 'unrectified_meridian': unrectified_meridian, 'cross-ratio':cross_ratio}
+            return {**stage_data, 'output': normalized_data, 'w_homologies': w_homologies, 'unrectified_meridian': unrectified_meridian, 'cross-ratio':cross_ratio}
  
     def __init__(self, data_controller: DataController, identifier):
         stages = [self.EntitySelection(self, pause=True),

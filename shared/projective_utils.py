@@ -65,11 +65,6 @@ def calculate_intrinsics_camera_matrix(metadata: ImageMetadata):
                   [0, fy, cy],
                   [0, 0, 1]])
 
-    # fov_x = np.rad2deg(2 * np.arctan2(width, 2 * fx))
-    # fov_y = np.rad2deg(2 * np.arctan2(height, 2 * fy))   
-    # logger.info(f'Field of view x : {fov_x}')
-    # logger.info(f'Field of view y : {fov_y}')
-
     return K
 
 def rotation_matrix(axis: str, angle: float):

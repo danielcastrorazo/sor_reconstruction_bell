@@ -32,7 +32,6 @@ class FrameColombo(_Frame):
             self.combobox = ttk.Combobox(
                 self.combination_frame,
                 values=['Option 1', 'Option 2'],
-                # values=['Option 1', 'Option 2', 'Option 3', 'Option 4', 'Option 5', 'Option 6'],
                 state='readonly',
             )
             self.combobox.bind(
@@ -195,6 +194,8 @@ class FrameColombo(_Frame):
                 self._stage0_update(axis, vanishing_line)
             elif stage_id == 1:
                 filter_mask = self.controller.options['filter_mask']
+                fixed = kwargs['fixed_points']
+                self.fixed_points.set_offsets(fixed[:, :2])
                 self._stage1_update(filter_mask)
             elif stage_id == 2:
                 self.line1.set_data(kwargs['output'][:, :2].T)

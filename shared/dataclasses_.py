@@ -47,6 +47,14 @@ class _Ellipse:
     def get_points(self, npts=100, tmin=0.0, tmax=2*np.pi):
         return get_ellipse_pts((*self.center, *self.axes, self.angle), npts, tmin, tmax)
 
+    def aprox_distance_to_point(self, x): # Sampson approximation to the geometric distance
+        C = self.get_matrix_form()
+        Cx = C @ x
+        numerator = np.dot(x, Cx) ** 2
+        a, b = Cx[0], Cx[1]
+        denominator = 4.0 * (a ** 2 + b ** 2)
+        return numerator / denominator
+
     def __post_init__(self):
         if isinstance(self.center, list) and isinstance(self.axes, list):
             self.center = tuple(self.center)
@@ -54,8 +62,7 @@ class _Ellipse:
 
     def __str__(self):
         a, b, c, d, e, f = self.get_pol_to_cart()
-        print(f'{a:.15f} x^2 + {b:.15f} x y + {c:.15f} y^2 + {d:.15f} x + {e:.15f} y + {f:.15f} = 0')
-
+        return f'{a:.15f} x^2 + {b:.15f} x y + {c:.15f} y^2 + {d:.15f} x + {e:.15f} y + {f:.15f} = 0'
 
 @dataclass
 class ImageMetadata:

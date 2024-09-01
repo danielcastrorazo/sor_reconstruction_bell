@@ -24,7 +24,7 @@ def sort_by_distance_to_axis(points, axis):
     max_distance = max(np.mean(points[:, :2], axis=1)) * 0.3
     return sort_by_distance(points, idx, max_distance=max_distance)
 
-def generate_and_evaluate_spline(points, t, k=3, s=0, parametrization='chord'):
+def generate_and_evaluate_spline(points, t, k=3, s=0, parametrization='chord', weights=None):
     x, y = points[:, :2].T
     p = np.column_stack((x, y))
 
@@ -45,7 +45,12 @@ def generate_and_evaluate_spline(points, t, k=3, s=0, parametrization='chord'):
     u = get_u_parametrization()
     u /= u.max()
     
-    tck, _ = splprep([x, y], u=u, k=k, s=s)
+
+    if weights is None:
+        tck, _ = splprep([x, y], u=u, k=k, s=s)
+    else:
+        tck, _ = splprep([x, y], w=weights, u=u, k=k, s=s)
+
     return splev(t, tck), splev(t, tck, der=1)
 
 def generate_spline(points, k=3, parametrization='chord', bc_type='natural'):
@@ -74,6 +79,19 @@ def generate_spline(points, k=3, parametrization='chord', bc_type='natural'):
     if k == 1:
         bc_type = None
     return make_interp_spline(t, np.c_[xn, yn], k=k, bc_type=bc_type)
+
+def normalize_range2(points, xrange, yrange):
+    xmin, xmax = xrange
+    ymin, ymax = yrange
+
+    xdiff, ydiff = xmax-xmin, ymax-ymin
+
+    xyratio = xdiff / ydiff
+    
+    xs = np.array([(float(i) - xmin) / xdiff * xyratio for i in points[:, 0]])
+    ys = np.array([(float(i) - ymin) / ydiff for i in points[:, 1]])
+    
+    return np.column_stack((xs, ys, np.ones_like(xs)))
 
 def normalize_range(points, xmin=None):
     if xmin is None:

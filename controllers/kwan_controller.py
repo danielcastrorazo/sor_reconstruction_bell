@@ -49,22 +49,28 @@ class KwanController(MethodController):
             transformation = rot_a @ rot_b @ np.linalg.inv(self.controller.camera_matrix)
             data = apply_transformation(transformation, data)
 
+            data[:, 0] = np.abs(data[:, 0])
+            data = data[sort_by_distance_to_axis(data, [1, 0, 0])]
+
+            fixed_idx = set([0, len(data) - 1])
             ellipses_coefficients = []
             for ellipse in self.controller.ellipses:
                 ei = dataclasses.replace(ellipse)
                 ei.apply_transformation(transformation)
                 a, _, c, _, e, f = ei.get_pol_to_cart()
                 ellipses_coefficients.append((a, c, e, f))
+                distances = [ei.aprox_distance_to_point(p) for p in data]
+                fixed_idx.add(np.argmin(distances))
 
             logger.info(f'Looking for rotation angle using {len(self.controller.ellipses)} ellipses.')
             result = search_angle_rotation_x(ellipses_coefficients)
             rotation_angle_x = result.x[0]
             logger.trace(f'Angle opt result. {result.message}')
 
-            data[:, 0] = np.abs(data[:, 0])
-            data = data[sort_by_distance_to_axis(data, [1, 0, 0])]
+            fixed_points = np.array([data[i] for i in fixed_idx])
 
-            return {**stage_data, 'output': data, 'rotation_angle_x': rotation_angle_x}
+            return {**stage_data, 'output': data, 'rotation_angle_x': rotation_angle_x,
+                    'fixed_idx': fixed_idx, 'fixed_points': fixed_points}
         
     class SplineFittingAndNormal(Stage):
         def _process(self, stage_data):
@@ -74,17 +80,20 @@ class KwanController(MethodController):
             s = self.controller.options['smoothing_factor'] * len(data)
             t = np.linspace(0.0, 1.0, self.controller.options['sample_size'])
 
-            data, tangent_vectors = generate_and_evaluate_spline(data, s=s, t=t, parametrization=parametrization)
+            fixed_idx = stage_data['fixed_idx']
+            weights = np.ones(len(data))
+            weights[[*fixed_idx]] = 10 ** 6
+
+            data, tangent_vectors = generate_and_evaluate_spline(data, s=s, t=t, parametrization=parametrization, weights=weights)
             data = np.c_[*data, np.ones_like(t)]
             tangent_vectors = np.c_[*tangent_vectors, np.zeros_like(t)]
             tangent_vectors /= np.linalg.norm(tangent_vectors, axis=1)[:, np.newaxis]
 
-            logger.info(f'Spline fitted to contour and sampled. Number of sample points: {len(data)}')
+            logger.info(f'Spline fit to contour and sampled. Number of sample points: {len(data)}')
 
             normals = np.cross(data, tangent_vectors)
             normals /= np.linalg.norm(normals, axis=1)[:, np.newaxis]
                 
-
             if not self.controller.options['disable_filter_overall']:
                 n_x, n_y = normals[:, :2].T
                 mask_values = np.abs(np.divide(n_y, n_x, where=n_x != 0))

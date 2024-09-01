@@ -57,6 +57,9 @@ class FrameKwan(_Frame):
                 self._stage0_update(filter_mask)
             elif stage_id == 2:
                 x, y = kwargs['output'][:, :2].T
+
+                fixed = kwargs['fixed_points']
+                self.fixed_points.set_offsets(fixed[:, :2])
                 
                 x_range, y_range = max(x) - min(x), max(y) - min(y)
                 bounding_box_size = max(x_range, y_range)

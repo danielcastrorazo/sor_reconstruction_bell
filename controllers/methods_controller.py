@@ -147,15 +147,15 @@ class MethodController(Observable):
             outer_detail, inner_detail= self.controller.options['outer_curve_size'], self.controller.options['inner_curve_size']
 
             full_curve, full_tangents, outer_curve, inner_curve, outer_tangents, inner_tangents = generate_model(data, parametrization, outer_detail, inner_detail)
-
+            logger.success(f'The curve scale is {max(outer_curve[:, 0])}')
             return {**stage_data, 'output': (full_curve, full_tangents), 'outer_curve': (outer_curve, outer_tangents), 'inner_curve': (inner_curve, inner_tangents)}
         
     class ExportData(Stage):
         def _process(self, stage_data):
             create_obj = self.controller.options['create_obj']
-            phi_n = self.controller.options['phi_n']
 
             if create_obj:
+                phi_n = self.controller.options['phi_n']
                 full_curve, full_tangents = stage_data['output']
                 mesh = create_model(full_curve, full_tangents, phi_n)
                 self.controller.notify_observers(event="export_mesh", identifier=self.controller.identifier, mesh=mesh)

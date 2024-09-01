@@ -291,6 +291,7 @@ class _Frame(ttk.Frame):
         axes[0].figure.canvas.mpl_connect('key_press_event', self.on_key_press)
         axes[0].figure.canvas.mpl_connect('key_release_event', self.on_key_release)
 
+        self.fixed_points = axes[1].scatter([],[], zorder=11, c='red', s=5)
         self.line1 = axes[1].add_line(
             Line2D([], [], zorder=10, marker='o', markersize=1)
         )
@@ -358,6 +359,7 @@ class _Frame(ttk.Frame):
         self.fc = self.collection0.get_facecolors()
 
         self.line1.set_data([], [])
+        self.fixed_points.set_offsets(np.c_[[], []])
         self.line2.set_data([], [])
         self.line3.set_data([], [])
 
