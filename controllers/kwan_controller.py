@@ -54,13 +54,14 @@ class KwanController(MethodController):
 
             fixed_idx = set([0, len(data) - 1])
             ellipses_coefficients = []
-            for ellipse in self.controller.ellipses:
+            for i, ellipse in enumerate(self.controller.ellipses):
                 ei = dataclasses.replace(ellipse)
                 ei.apply_transformation(transformation)
                 a, _, c, _, e, f = ei.get_pol_to_cart()
                 ellipses_coefficients.append((a, c, e, f))
-                distances = [ei.aprox_distance_to_point(p) for p in data]
-                fixed_idx.add(np.argmin(distances))
+                if i == 0:
+                    distances = [ei.aprox_distance_to_point(p) for p in data]
+                    fixed_idx.add(np.argmin(distances))
 
             logger.info(f'Looking for rotation angle using {len(self.controller.ellipses)} ellipses.')
             result = search_angle_rotation_x(ellipses_coefficients)
